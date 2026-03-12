@@ -1,0 +1,12 @@
+Flask
+flask-cors
+psycopg2-binary
+python-dotenv
+reportlab
+requests
+bcrypt
+fpdf
+transformers
+torch
+bs4
+groq

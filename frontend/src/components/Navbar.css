@@ -1,0 +1,197 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 64px;
+  background: rgba(1, 1, 13, 0.92);
+  border-bottom: 1px solid rgba(224, 227, 226, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 30px rgba(1, 21, 21, 0.08);
+}
+
+body.light-mode .navbar {
+  background: rgba(241, 241, 243, 0.92);
+  border-bottom: 1px solid rgba(16, 16, 18, 0.2);
+  box-shadow: 0 4px 30px rgba(2, 2, 20, 0.08);
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.brand-icon {
+  font-size: 22px;
+  color: #34d8d8;
+  animation: spin 8s linear infinite;
+}
+
+body.light-mode .brand-icon {
+  color: #0a0a2e;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.brand-text {
+  font-family: 'Orbitron', monospace;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 3px;
+  color: #1ec9c9;
+}
+
+body.light-mode .brand-text {
+  color: #0a0a2e;
+}
+
+.brand-accent {
+  color: #ff0055;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 4px;
+}
+
+.nav-link {
+  background: transparent;
+  border: none;
+  color: rgba(37, 142, 142, 0.55);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 8px 18px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+body.light-mode .nav-link {
+  color: rgba(10, 10, 46, 0.55);
+}
+
+.nav-link:hover, .nav-link.active {
+  color: #00ffff;
+  background: rgba(0, 255, 255, 0.1);
+}
+
+body.light-mode .nav-link:hover,
+body.light-mode .nav-link.active {
+  color: #0a0a2e;
+  background: rgba(10, 10, 46, 0.1);
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 18px;
+  right: 18px;
+  height: 2px;
+  background: #00ffff;
+  box-shadow: 0 0 8px #1f9898;
+}
+
+body.light-mode .nav-link.active::after {
+  background: #0a0a2e;
+  box-shadow: none;
+}
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  color: #00ffff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s;
+  padding: 0;
+}
+
+body.light-mode .theme-toggle {
+  border-color: rgba(10, 10, 46, 0.35);
+}
+
+.theme-toggle:hover {
+  background: rgba(0, 255, 255, 0.12);
+  box-shadow: 0 0 14px rgba(0, 255, 255, 0.4);
+  transform: scale(1.1);
+}
+
+body.light-mode .theme-toggle:hover {
+  background: rgba(10, 10, 46, 0.08);
+  box-shadow: none;
+}
+
+/* ── Right section ── */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 64px; /* ✅ match navbar height so nothing overflows */
+}
+
+.nav-logout {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid rgba(255, 68, 68, 0.35);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(0, 255, 255, 0.55); /* ✅ matches dark mode inactive nav-link */
+}
+
+.nav-logout:hover {
+  color: #ff4444;
+  border-color: #ff4444;
+  background: rgba(255, 68, 68, 0.06);
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.15);
+}
+
+.nav-logout .logout-icon {
+  color: #ff4444; /* ✅ power symbol always red */
+}
+
+.nav-logout:hover .logout-icon {
+  color: #ff4444;
+}
+
+body.light-mode .nav-logout {
+  color: rgba(10, 10, 46, 0.55); /* ✅ matches light mode nav-link */
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+body.light-mode .nav-logout:hover {
+  color: #cc0000;
+  border-color: #cc0000;
+  background: rgba(204, 0, 0, 0.05);
+  box-shadow: none;
+}
+
+body.light-mode .nav-logout .logout-icon {
+  color: #cc0000;
+}
