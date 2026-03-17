@@ -1,27 +1,43 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import "../App.css";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useTheme } from "../App";
+import "./Navbar.css";
 
-import { AppBar, Toolbar, Typography, Button } from "@mui/material";
-import { Link } from "react-router-dom";
+function Navbar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isDark, toggleTheme } = useTheme();
 
- function Navbar() {
+  const navLinks = [
+    { path: "/dashboard", label: "DASHBOARD" },
+    { path: "/profile", label: "PROFILE" },
+    { path: "/uploadanalyse", label: "ANALYSE" },
+  ];
+
   return (
-    <AppBar position="static" elevation={0}>
-      <Toolbar>
-        <Typography variant="h6" sx={{ flexGrow: 1 }}>
-          MiniApp
-        </Typography>
+    <nav className="navbar">
+      <div className="navbar-brand" onClick={() => navigate("/dashboard")}>
+        <span className="brand-icon">⬡</span>
+        <span className="brand-text">VULN<span className="brand-accent">ERR</span></span>
+      </div>
 
-        <Button color="inherit" component={Link} to="/dashboard">
-          Dashboard
-        </Button>
-        <Button color="inherit" component={Link} to="/profile">
-          Profile
-          
-        </Button>
-      </Toolbar>
-    </AppBar>
+      <div className="navbar-links">
+        {navLinks.map(link => (
+          <button
+            key={link.path}
+            className={`nav-link ${location.pathname === link.path ? "active" : ""}`}
+            onClick={() => navigate(link.path)}
+          >
+            {link.label}
+          </button>
+        ))}
+      </div>
+
+      <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+        {isDark ? "☀" : "☾"}
+      </button>
+    </nav>
   );
 }
+
 export default Navbar;

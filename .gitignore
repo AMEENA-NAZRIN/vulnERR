@@ -1,6 +1,6 @@
 trained_model/
 model_training/
-
+frontend/node_modules
 
 __pycache__/
 *.pyc
@@ -8,3 +8,4 @@ __pycache__/
 .vscode/
 venv/
 backend/.venv
+reports/

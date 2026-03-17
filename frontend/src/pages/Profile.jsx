@@ -1,111 +1,135 @@
-/*import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
+import { TextField, Button, Box, CircularProgress } from "@mui/material";
+import "./Profile.css";
 
 function Profile() {
-  const navigate = useNavigate();
+  const userId = localStorage.getItem("user_id");
 
-  return (
-    <>
-      <Navbar />
+  const [user, setUser] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-      <div style={{ textAlign: "center", marginTop: "40px" }}>
-        <h2>User Profile</h2>
+  // Fetch logged-in user from backend
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`http://127.0.0.1:5000/user/${userId}`);
+        const data = await res.json();
+        setUser(data);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        <button
-          onClick={() => navigate("/uploadanalyse")}
-          style={{
-            marginTop: "20px",
-            padding: "10px 20px",
-            background: "#667eea",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          Go to Upload Analyse
-           
-        </button>
-          <button
-          onClick={() => navigate("/uploadanalyse")}
-          style={{
-            marginTop: "20px",
-            padding: "10px 20px",
-            background: "#667eea",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-          >
-            dowmload pdf 
-        </button>
+    if (userId) fetchUser();
+  }, [userId]);
 
-      </div>
-    </>
-  );
-}
-
-export default Profile;*/
-
-
-import React from "react";
-import Navbar from "../components/Navbar";
-import { useNavigate } from "react-router-dom";
-
-function Profile() {
-  const navigate = useNavigate();
-
-  return (
-    <>
-      <Navbar />
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h2>👤 USER PROFILE</h2>
-
-          <button style={styles.button} onClick={()=>navigate("/uploadanalyse")}>
-            Upload & Analyse
-          </button>
-
-          <button style={styles.button} onClick={()=>navigate("/downloadpdf")}>
-            Download Security Report
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-const styles = {
-  container:{
-    height:"100vh",
-    background:"#050510",
-    display:"flex",
-    justifyContent:"center",
-    alignItems:"center",
-    fontFamily:"monospace"
-  },
-  card:{
-    padding:"50px",
-    border:"1px solid #00ffff",
-    borderRadius:"15px",
-    background:"rgba(0,255,255,0.05)",
-    boxShadow:"0 0 30px #00ffff40",
-    textAlign:"center",
-    color:"#00ffff"
-  },
-  button:{
-    display:"block",
-    width:"100%",
-    marginTop:"15px",
-    padding:"12px",
-    background:"#00ffff",
-    border:"none",
-    borderRadius:"8px",
-    cursor:"pointer",
-    fontWeight:"bold"
+  //  Show loading spinner while fetching
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+          <CircularProgress />
+        </Box>
+      </>
+    );
   }
-};
+
+  //  If user not found
+  if (!user) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ textAlign: "center", marginTop: "50px" }}>
+          User not found.
+        </div>
+      </>
+    );
+  }
+
+  // Input change handler
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setUser({ ...user, [name]: value });
+  };
+
+  //  Save profile changes to backend
+  const handleSave = async () => {
+    try {
+      await fetch(`http://127.0.0.1:5000/user/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(user),
+      });
+
+      setEditMode(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
+  };
+
+  return (
+    <>
+      <Navbar />
+      <div className="profile-page">
+        {/* Header with avatar */}
+        <div className="profile-header">
+          <div className="profile-avatar">
+            <span>{user.username?.[0]?.toUpperCase() || "U"}</span>
+          </div>
+          <div className="profile-info">
+            <p className="profile-meta">USER PROFILE</p>
+            
+          </div>
+        </div>
+
+        {/* Form */}
+        <Box
+          component="form"
+          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 3 }}
+          noValidate
+          autoComplete="off"
+        >
+          
+          <TextField
+            label="Username"
+            name="username"
+            value={user.username}
+            onChange={handleChange}
+            disabled={!editMode}
+          />
+          <TextField
+            label="Email"
+            name="email"
+            value={user.email}
+            onChange={handleChange}
+            disabled={!editMode}
+          />
+
+          {editMode ? (
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button variant="contained" onClick={handleSave}>
+                Save
+              </Button>
+              <Button variant="outlined" onClick={() => setEditMode(false)}>
+                Cancel
+              </Button>
+            </Box>
+          ) : (
+            <Button variant="contained" onClick={() => setEditMode(true)}>
+              Edit Profile
+            </Button>
+          )}
+        </Box>
+      </div>
+    </>
+  );
+}
 
 export default Profile;

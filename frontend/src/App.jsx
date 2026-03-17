@@ -1,28 +1,39 @@
-import React from "react";
+import React, { useMemo, useState, createContext, useContext, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import UploadAnalyse from "./pages/UploadAnalyse";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import "./App.css";
+import BatchAnalyse from "./pages/BatchAnalyse"
 
-import { ThemeProvider, createTheme } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
+export const ThemeContext = createContext();
 
-const theme = createTheme({
-  palette: {
-    primary: { main: "#6C63FF" },
-    secondary: { main: "#FF6584" },
-    background: { default: "#f4f6f8" },
-  },
-  shape: { borderRadius: 12 },
-});
+export function useTheme() {
+  return useContext(ThemeContext);
+}
 
 function App() {
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+  const [isDark, setIsDark] = useState(() => {
+    return localStorage.getItem("theme") !== "light";
+  });
 
+  useEffect(() => {
+    if (isDark) {
+      document.body.classList.remove("light-mode");
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+      document.body.classList.add("light-mode");
+    }
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark(prev => !prev);
+
+  return (
+    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
@@ -30,10 +41,10 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/uploadanalyse" element={<UploadAnalyse />} />
+          <Route path="/batch-upload" element={<BatchAnalyse />} />
         </Routes>
       </BrowserRouter>
-
-    </ThemeProvider>
+    </ThemeContext.Provider>
   );
 }
 

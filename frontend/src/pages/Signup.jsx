@@ -1,81 +1,108 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signupUser } from "../auth";
+import "./Auth.css";
 
 function Signup() {
   const navigate = useNavigate();
-  const [username,setUsername] = useState("");
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = () => {
-    signupUser({username,password,email});
-    alert("Account Created Successfully");
-    navigate("/");
-  };
+  const handleSignup = async () => {
+  setLoading(true);
+
+  try {
+    const response = await fetch("http://127.0.0.1:5000/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username,
+        email,
+        password
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+
+    if (response.ok) {
+      alert("User registered successfully");
+      navigate("/");
+    } else {
+      alert(data.error || "Signup failed");
+    }
+
+  } catch (error) {
+    console.error("Signup error:", error);
+    alert("Server error");
+  }
+
+  setLoading(false);
+};
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>🛡 CREATE ACCOUNT</h2>
+    <div className="auth-bg">
+      <div className="auth-grid" />
+      <div className="auth-glow" style={{ left: "60%", top: "30%" }} />
 
-        <input style={styles.input} placeholder="Username" onChange={(e)=>setUsername(e.target.value)} />
-        <input style={styles.input} placeholder="Email" onChange={(e)=>setEmail(e.target.value)} />
-        <input style={styles.input} type="password" placeholder="Password" onChange={(e)=>setPassword(e.target.value)} />
+      <div className="auth-card">
+        <div className="auth-header">
+          <h1 className="auth-title">VULNERR</h1>
+          <p className="auth-subtitle">NEW IDENTITY REGISTRATION</p>
+        </div>
 
-        <button style={styles.button} onClick={handleSignup}>
-          REGISTER
-        </button>
+        <div className="auth-divider"><span>REGISTER</span></div>
 
-        <p style={styles.link} onClick={()=>navigate("/")}>
-          Already Registered? Login
-        </p>
+        <div className="auth-form">
+          <div className="field-group">
+            <label className="field-label">USER_ID</label>
+            <input
+              className="auth-input"
+              placeholder="choose username"
+              onChange={e => setUsername(e.target.value)}
+            />
+          </div>
+
+          <div className="field-group">
+            <label className="field-label">EMAIL_ADDR</label>
+            <input
+              className="auth-input"
+              placeholder="your@email.com"
+              onChange={e => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="field-group">
+            <label className="field-label">PASSKEY</label>
+            <input
+              className="auth-input"
+              type="password"
+              placeholder="create password"
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
+
+          <button
+            className="auth-btn primary"
+            onClick={handleSignup}
+            disabled={loading}
+          >
+            {loading ? <span className="btn-loading">REGISTERING<span className="dots" /></span> : "REGISTER IDENTITY"}
+          </button>
+
+          <button
+            className="auth-btn ghost"
+            onClick={() => navigate("/")}
+          >
+            BACK TO LOGIN
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container:{
-    height:"100vh",
-    background:"radial-gradient(circle at top, #0f0f1b, #050510)",
-    display:"flex",
-    justifyContent:"center",
-    alignItems:"center",
-    fontFamily:"monospace"
-  },
-  card:{
-    background:"rgba(0,255,255,0.05)",
-    border:"1px solid #00ffff",
-    backdropFilter:"blur(15px)",
-    padding:"40px",
-    borderRadius:"15px",
-    width:"340px",
-    textAlign:"center",
-    color:"#00ffff",
-    boxShadow:"0 0 25px #00ffff50"
-  },
-  title:{ marginBottom:"30px" },
-  input:{
-    width:"100%",
-    padding:"12px",
-    marginBottom:"15px",
-    background:"#111",
-    border:"1px solid #00ffff",
-    color:"#00ffff",
-    borderRadius:"8px"
-  },
-  button:{
-    width:"100%",
-    padding:"12px",
-    background:"#00ffff",
-    color:"#000",
-    border:"none",
-    borderRadius:"8px",
-    cursor:"pointer",
-    fontWeight:"bold"
-  },
-  link:{ marginTop:"15px", cursor:"pointer" }
-};
 
 export default Signup;

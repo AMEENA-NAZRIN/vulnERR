@@ -1,0 +1,67 @@
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.create-btn {
+  padding: 0.5rem 1rem;
+  background-color: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.create-btn:hover {
+  background-color: #5750d4;
+}
+
+.projects-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.project-item {
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+  background-color: #f4f6f8;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.project-item:hover {
+  background-color: #e0e4eb;
+}
+
+.MuiCard-root {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.MuiCard-root:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.project-details {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-left: 4px solid #6c63ff;
+  border-radius: 6px;
+}
+
+.project-details pre {
+  background-color: #eee;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
