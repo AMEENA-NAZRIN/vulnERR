@@ -94,14 +94,11 @@ def upload_file():
                 if analysis["status"] == "vulnerable":
                     suggestions = get_taint_fix_suggestions(code)
                     vulnerabilities = parse_vulnerabilities(suggestions)
-                    print("VULNS FOUND:", len(vulnerabilities))
 
                 # Generate and save PDF to DB so download-file-report can fetch it
                 pdf_bytes = generate_pdf(py_filename, analysis, suggestions)
                 vuln_count = len(vulnerabilities)
-                print(f"DEBUG: Saving {py_filename} to DB, user_id={user_id}, vuln_count={vuln_count}")
-                saved_id = save_code_to_db(user_id, py_filename, code, analysis, pdf_bytes, vuln_count)
-                print(f"DEBUG: save_code_to_db returned file_id={saved_id}")
+                saved_id = save_code_to_db(user_id, py_filename, code, analysis, pdf_bytes, vuln_count, batch_id=batch_id, zip_filename=filename)
 
                 results.append({
                     "filename": py_filename,
@@ -113,6 +110,8 @@ def upload_file():
 
             return jsonify({
                 "batch": True,
+                "batch_id": batch_id,
+                "zip_filename": filename,
                 "files": results
             })
 
@@ -414,30 +413,67 @@ def login():
     
 @app.route("/dashboard/<int:user_id>")
 def my_reports(user_id):
-        print("Fetching reports for user:", user_id)
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+    print("Fetching reports for user:", user_id)
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        cur.execute("""
-            SELECT sf.id, sf.filename, sf.uploaded_at,
-                r.vulnerabilities_found
-            FROM source_files sf
-            LEFT JOIN reports r ON sf.id = r.file_id
-            WHERE sf.user_id = %s
-            ORDER BY sf.uploaded_at DESC
-        """, (user_id,))
+    cur.execute("""
+        SELECT sf.id, sf.filename, sf.uploaded_at,
+               sf.batch_id, sf.zip_filename, r.vulnerabilities_found
+        FROM source_files sf
+        LEFT JOIN reports r ON sf.id = r.file_id
+        WHERE sf.user_id = %s
+        ORDER BY sf.uploaded_at DESC
+    """, (user_id,))
 
-        data = cur.fetchall()
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
 
-        #  Convert datetime to ISO string
-        for row in data:
-            if row["uploaded_at"]:
-                row["uploaded_at"] = row["uploaded_at"].isoformat()
+    # Group by batch_id: batch files go into folders, solo files stay flat
+    batches = {}   # batch_id -> list of files
+    solo = []      # files with no batch_id
 
-        cur.close()
-        conn.close()
+    for row in rows:
+        row["uploaded_at"] = row["uploaded_at"].isoformat() if row["uploaded_at"] else None
+        if row["batch_id"]:
+            bid = row["batch_id"]
+            if bid not in batches:
+                batches[bid] = {"files": [], "zip_filename": row.get("zip_filename", "")}
+            batches[bid]["files"].append(dict(row))
+        else:
+            solo.append(dict(row))
 
-        return jsonify(data)
+    # Build response: mix of solo files and batch folders, sorted by most recent
+    result = []
+
+    for bid, batch_data in batches.items():
+        files = batch_data["files"]
+        most_recent = max(f["uploaded_at"] for f in files)
+        total_vulns = sum(f["vulnerabilities_found"] or 0 for f in files)
+        result.append({
+            "type": "batch",
+            "batch_id": bid,
+            "zip_filename": batch_data.get("zip_filename", ""),
+            "uploaded_at": most_recent,
+            "file_count": len(files),
+            "total_vulnerabilities": total_vulns,
+            "files": files
+        })
+
+    for f in solo:
+        result.append({
+            "type": "file",
+            "id": f["id"],
+            "filename": f["filename"],
+            "uploaded_at": f["uploaded_at"],
+            "vulnerabilities_found": f["vulnerabilities_found"]
+        })
+
+    # Sort everything by uploaded_at descending
+    result.sort(key=lambda x: x["uploaded_at"] or "", reverse=True)
+
+    return jsonify(result)
 
 @app.route("/report/<int:file_id>")
 def get_report(file_id):
