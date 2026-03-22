@@ -9,3 +9,4 @@ __pycache__/
 venv/
 backend/.venv
 reports/
+backend/uploads/
