@@ -613,3 +613,63 @@ color:#cbd5f5;
 line-height:1.6;
 }
 
+.ua-table {
+width:100%;
+border-collapse:collapse;
+margin-top:10px;
+}
+
+.ua-table th,
+.ua-table td {
+border-bottom:1px solid rgba(255,255,255,0.1);
+padding:8px;
+text-align:left;
+font-size:14px;
+}
+
+.ua-table th {
+color:#00ffff;
+}
+/* ---------- Vulnerability Cards Light Mode ---------- */
+
+body.light-mode .vuln-card{
+  background:#ffffff;
+  border:1px solid rgba(10,10,46,0.15);
+}
+
+body.light-mode .vuln-card:hover{
+  border-color:#0a0a2e;
+}
+
+body.light-mode .vuln-header{
+  background:#f7f9ff;
+  color:#0a0a2e;
+}
+
+body.light-mode .vuln-title-text{
+  color:#0a0a2e;
+}
+
+body.light-mode .vuln-toggle{
+  color:#5a5a7a;
+}
+
+body.light-mode .vuln-icon{
+  color:#cc0000;
+}
+
+body.light-mode .vuln-body{
+  background:#ffffff;
+  color:#2a2a4e;
+}
+
+/* Fix block styling */
+
+body.light-mode .vuln-body pre{
+  background:#f6f8ff;
+  border:1px solid rgba(10,10,46,0.15);
+  color:#0a0a2e;
+}
+body.light-mode .ua-panel.suggestions{
+  background:#ffffff;
+}

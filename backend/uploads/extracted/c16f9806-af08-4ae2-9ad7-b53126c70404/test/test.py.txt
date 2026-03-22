@@ -1,0 +1,11 @@
+def transform_strip(cmd):
+    return cmd.strip()
+
+def transform_concat(cmd):
+    return "echo " + cmd
+
+def transform_format(cmd):
+    return f"ls {cmd}"
+
+def transform_replace(cmd):
+    return cmd.replace(";", "")

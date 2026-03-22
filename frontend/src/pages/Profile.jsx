@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useNavigate } from "react";
 import Navbar from "../components/Navbar";
-import { useNavigate } from "react-router-dom";
+import { TextField, Button, Box, CircularProgress } from "@mui/material";
 import "./Profile.css";
 
 function Profile() {
@@ -32,9 +32,35 @@ function Profile() {
         setLoading(false);
       }
     };
+
     if (userId) fetchUser();
   }, [userId]);
 
+  //  Show loading spinner while fetching
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+          <CircularProgress />
+        </Box>
+      </>
+    );
+  }
+
+  //  If user not found
+  if (!user) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ textAlign: "center", marginTop: "50px" }}>
+          User not found.
+        </div>
+      </>
+    );
+  }
+
+  // Input change handler
   const handleChange = (e) => {
     const { name, value } = e.target;
     setUser({ ...user, [name]: value });

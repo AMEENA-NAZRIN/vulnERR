@@ -1,6 +1,6 @@
 trained_model/
 model_training/
-
+frontend/node_modules
 
 __pycache__/
 *.pyc

@@ -443,4 +443,111 @@ body.light-mode .db-link {
 
 body.light-mode .db-link:hover {
   color: #6c63ff;
+/* ── Reset scroll locks ── */
+html,
+body,
+#root {
+  height: auto !important;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  position: static !important;
+}
+
+/* ── Dashboard wrapper ── */
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.create-btn {
+  padding: 0.5rem 1rem;
+  background-color: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.create-btn:hover {
+  background-color: #5750d4;
+}
+
+.projects-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.project-item {
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+  background-color: #f4f6f8;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.project-item:hover {
+  background-color: #e0e4eb;
+}
+
+/* ── MUI card overrides ── */
+.MuiCard-root {
+  transition: transform 0.2s, box-shadow 0.2s;
+  /* Never let a card clip the page scroll */
+  overflow: visible !important;
+}
+
+.MuiCard-root:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Expanded detail panel ── */
+.project-details {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-left: 4px solid #6c63ff;
+  border-radius: 6px;
+}
+
+.project-details pre {
+  background-color: #eee;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+/* ── MUI Collapse: never clip height ── */
+.MuiCollapse-root,
+.MuiCollapse-wrapper,
+.MuiCollapse-wrapperInner {
+  overflow: visible !important;
+}
+
+/* ── Source code box inside detail panel ── */
+.dashboard-code-box {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+/* ── PDF iframe ── */
+.dashboard-pdf-frame {
+  width: 100%;
+  height: 500px;
+  border: none;
+  border-radius: 4px;
+  display: block;
+}
 }

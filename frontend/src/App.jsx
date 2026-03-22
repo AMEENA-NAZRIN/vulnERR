@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useEffect } from "react";
+import React, { useMemo, useState, createContext, useContext, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import UploadAnalyse from "./pages/UploadAnalyse";
 import Login from "./pages/Login";
@@ -8,6 +8,7 @@ import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import "./App.css";
+import BatchAnalyse from "./pages/BatchAnalyse"
 
 export const ThemeContext = createContext();
 
@@ -55,6 +56,12 @@ function App() {
           <Route path="/uploadanalyse" element={
             <ProtectedRoute><UploadAnalyse /></ProtectedRoute>
           } />
+          <Route path="/" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/uploadanalyse" element={<UploadAnalyse />} />
+          <Route path="/batch-upload" element={<BatchAnalyse />} />
         </Routes>
       </BrowserRouter>
     </ThemeContext.Provider>

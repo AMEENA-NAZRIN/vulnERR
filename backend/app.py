@@ -11,7 +11,35 @@ from pdf_generator import generate_pdf
 from flask import send_from_directory
 from io import BytesIO
 import base64
+import uuid
+import zipfile
+from zip_handler import extract_python_files
+from pdf_generator import generate_batch_pdf
 
+from bs4 import BeautifulSoup
+
+def parse_vulnerabilities(html):
+
+    vulns = []
+
+    parts = html.split("<h3>")
+
+    for part in parts[1:]:  # skip first empty section
+
+        section = part.split("</h3>", 1)
+
+        if len(section) < 2:
+            continue
+
+        title = section[0].strip()
+        body = section[1].strip()
+
+        vulns.append({
+            "title": title,
+            "fix": body
+        })
+
+    return vulns
 app = Flask(__name__)
 CORS(app)
 
@@ -30,29 +58,90 @@ def upload_file():
             return jsonify({"error": "No file uploaded"}), 400
 
         file = request.files["file"]
-        user_id = int(request.form.get("user_id"))
+        user_id = request.form.get("user_id")
 
         if not user_id:
             return jsonify({"error": "User not logged in"}), 400
 
-        code = file.read().decode("utf-8")
-        result = analyze_code(code)
+        filename = file.filename
 
-        suggestions = ""
-        if result["status"] == "vulnerable":
-            suggestions = get_taint_fix_suggestions(code)
+        # =================================
+        # ZIP FILE ANALYSIS
+        # =================================
+        if filename.endswith(".zip"):
 
-        pdf_bytes = generate_pdf(file.filename, result, suggestions)  # now returns bytes directly
-        vuln_count = 1 if result["status"] == "vulnerable" else 0
+            batch_id = str(uuid.uuid4())
 
-        save_code_to_db(user_id, file.filename, code, result, pdf_bytes, vuln_count)
+            zip_path = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(zip_path)
 
-        return jsonify({
-            "message": "File stored successfully",
-            "status": result["status"],
-            "severity": result["severity"],
-            "ai_suggestions": suggestions
-        })
+            extract_dir = os.path.join(UPLOAD_FOLDER, "extracted", batch_id)
+
+            py_files = extract_python_files(zip_path, extract_dir)
+
+            results = []
+
+            for path in py_files:
+
+                with open(path, "rb") as f:
+                    code = f.read().decode("utf-8", errors="ignore")
+
+                py_filename = os.path.basename(path)
+                analysis = analyze_code(code)
+                suggestions = ""
+                vulnerabilities = []
+                if analysis["status"] == "vulnerable":
+                    suggestions = get_taint_fix_suggestions(code)
+                    vulnerabilities = parse_vulnerabilities(suggestions)
+
+                # Generate and save PDF to DB so download-file-report can fetch it
+                pdf_bytes = generate_pdf(py_filename, analysis, suggestions)
+                vuln_count = len(vulnerabilities)
+                saved_id = save_code_to_db(user_id, py_filename, code, analysis, pdf_bytes, vuln_count, batch_id=batch_id, zip_filename=filename)
+
+                results.append({
+                    "filename": py_filename,
+                    "file_id": saved_id,
+                    "status": analysis["status"],
+                    "severity": analysis["severity"],
+                    "vulnerabilities": vulnerabilities
+                })
+
+            return jsonify({
+                "batch": True,
+                "batch_id": batch_id,
+                "zip_filename": filename,
+                "files": results
+            })
+
+        # =================================
+        # NORMAL FILE ANALYSIS
+        # =================================
+        else:
+
+            code = file.read().decode("utf-8", errors="ignore")
+
+            result = analyze_code(code)
+
+            suggestions = ""
+            if result["status"] == "vulnerable":
+                suggestions = get_taint_fix_suggestions(code)
+
+            pdf_bytes = generate_pdf(filename, result, suggestions)
+
+            vuln_count = 1 if result["status"] == "vulnerable" else 0
+
+            # Save all files and capture file_id so frontend can download exact PDF
+            file_id = save_code_to_db(user_id, filename, code, result, pdf_bytes, vuln_count)
+
+            return jsonify({
+                "batch": False,
+                "file_id": file_id,
+                "status": result["status"],
+                "severity": result["severity"],
+                "message": result["message"],
+                "ai_suggestions": suggestions
+            })
 
     except Exception as e:
         print("UPLOAD ERROR:", e)
@@ -86,39 +175,180 @@ def analyze():
 @app.route("/download-report", methods=["POST"])
 def download_report():
     try:
-        if "file" not in request.files:
-            return jsonify({"error": "No file uploaded"}), 400
-
-        file = request.files["file"]
         user_id = request.form.get("user_id")
+        file_id = request.form.get("file_id")
 
         if not user_id:
             return jsonify({"error": "User ID missing"}), 400
+        if not file_id:
+            return jsonify({"error": "File ID missing"}), 400
 
-        filename = file.filename
-        code = file.read().decode("utf-8")
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT sf.filename, r.report_pdf
+            FROM source_files sf
+            LEFT JOIN reports r ON sf.id = r.file_id
+            WHERE sf.id = %s AND sf.user_id = %s
+        """, (file_id, user_id))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
 
-        # Analyze
-        result = analyze_code(code)
+        if not row or not row["report_pdf"]:
+            return jsonify({"error": "Report not found"}), 404
 
-        suggestions = ""
-        if result.get("status") == "vulnerable":
-            suggestions = get_taint_fix_suggestions(code)
-
-        # Generate PDF
-        pdf_bytes = generate_pdf(file.filename, result, suggestions)
+        print(f"DEBUG download-report: serving file_id={file_id}, filename={row['filename']}, pdf_size={len(bytes(row['report_pdf']))}")
 
         return send_file(
-            BytesIO(pdf_bytes),
+            BytesIO(bytes(row["report_pdf"])),
             as_attachment=True,
-            download_name=f"{file.filename}_report.pdf",
+            download_name=f"{row['filename']}_report.pdf",
             mimetype="application/pdf"
         )
 
     except Exception as e:
         print("ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
+@app.route("/download-file-report", methods=["POST"])
+def download_file_report():
+    try:
+        filename = request.form.get("filename")
+        user_id = request.form.get("user_id")
 
+        if not filename:
+            return jsonify({"error": "Filename missing"}), 400
+        if not user_id:
+            return jsonify({"error": "User ID missing"}), 400
+
+        # Fetch the saved PDF from DB using file_id for exact match
+        file_id = request.form.get("file_id")
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        if file_id:
+            # Exact match by file_id - most reliable
+            cur.execute("""
+                SELECT sf.filename, r.report_pdf
+                FROM source_files sf
+                LEFT JOIN reports r ON sf.id = r.file_id
+                WHERE sf.id = %s AND sf.user_id = %s
+            """, (file_id, user_id))
+        else:
+            # Fallback: match by filename + user_id, get most recent
+            cur.execute("""
+                SELECT sf.filename, r.report_pdf
+                FROM source_files sf
+                LEFT JOIN reports r ON sf.id = r.file_id
+                WHERE sf.filename = %s AND sf.user_id = %s
+                ORDER BY sf.uploaded_at DESC
+                LIMIT 1
+            """, (filename, user_id))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        print(f"DEBUG download-file-report: filename={filename}, file_id={file_id}, user_id={user_id}, found={row is not None}")
+
+        if row and row["report_pdf"]:
+            print(f"DEBUG: serving from DB, pdf_size={len(bytes(row['report_pdf']))}")
+            return send_file(
+                BytesIO(bytes(row["report_pdf"])),
+                as_attachment=True,
+                download_name=f"{filename}_report.pdf",
+                mimetype="application/pdf"
+            )
+
+        print(f"DEBUG: NOT found in DB, falling back to regenerate")
+        return jsonify({"error": "Report not found in database. Please re-analyze the file."}), 404
+
+    except Exception as e:
+        print("FILE REPORT ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+@app.route("/download-batch-report", methods=["POST"])
+def download_batch_report():
+
+    try:
+        # Accept list of file_ids from the frontend (saved during analysis)
+        user_id = request.form.get("user_id")
+        file_ids_raw = request.form.get("file_ids", "")
+
+        if not user_id:
+            return jsonify({"error": "User ID missing"}), 400
+
+        file_ids = [fid.strip() for fid in file_ids_raw.split(",") if fid.strip()]
+
+        if not file_ids:
+            return jsonify({"error": "No file IDs provided"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Fetch all saved results for these file_ids from DB
+        cur.execute("""
+            SELECT sf.id, sf.filename, r.report_pdf, r.vulnerabilities_found,
+                   r.created_at
+            FROM source_files sf
+            LEFT JOIN reports r ON sf.id = r.file_id
+            WHERE sf.id = ANY(%s) AND sf.user_id = %s
+            ORDER BY sf.uploaded_at ASC
+        """, ([int(fid) for fid in file_ids], user_id))
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        if not rows:
+            return jsonify({"error": "No reports found in database"}), 404
+
+        results = []
+        vulnerable_count = 0
+        safe_count = 0
+        batch_id = str(uuid.uuid4())
+
+        for row in rows:
+            vuln_count = row["vulnerabilities_found"] or 0
+            status = "vulnerable" if vuln_count > 0 else "safe"
+            severity = "High" if vuln_count > 0 else "None"
+
+            if status == "vulnerable":
+                vulnerable_count += 1
+            else:
+                safe_count += 1
+
+            # Extract suggestions text from saved PDF is not possible,
+            # so we pass empty suggestions — the individual PDFs are already correct.
+            # The batch PDF shows summary + per-file status table.
+            results.append({
+                "filename": row["filename"],
+                "status": status,
+                "severity": severity,
+                "message": "Potential taint vulnerability detected" if vuln_count > 0 else "No taint vulnerability detected",
+                "suggestions": ""  # batch summary only; individual PDFs have full details
+            })
+
+        batch_data = {
+            "batch_id": batch_id,
+            "total_files": len(py_files),
+            "vulnerable_count": vulnerable_count,
+            "safe_count": safe_count,
+            "files": results
+        }
+
+        pdf_bytes = generate_batch_pdf(batch_data)
+
+        return send_file(
+            BytesIO(pdf_bytes),
+            as_attachment=True,
+            download_name="VulnERR_Batch_Report.pdf",
+            mimetype="application/pdf"
+        )
+
+    except Exception as e:
+        print("BATCH REPORT ERROR:", e)
+        return jsonify({"error": str(e)}), 500
 @app.route("/signup", methods=["POST"])
 def signup():
     try:
@@ -182,30 +412,67 @@ def login():
     
 @app.route("/dashboard/<int:user_id>")
 def my_reports(user_id):
-        print("Fetching reports for user:", user_id)
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+    print("Fetching reports for user:", user_id)
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        cur.execute("""
-            SELECT sf.id, sf.filename, sf.uploaded_at,
-                r.vulnerabilities_found
-            FROM source_files sf
-            LEFT JOIN reports r ON sf.id = r.file_id
-            WHERE sf.user_id = %s
-            ORDER BY sf.uploaded_at DESC
-        """, (user_id,))
+    cur.execute("""
+        SELECT sf.id, sf.filename, sf.uploaded_at,
+               sf.batch_id, sf.zip_filename, r.vulnerabilities_found
+        FROM source_files sf
+        LEFT JOIN reports r ON sf.id = r.file_id
+        WHERE sf.user_id = %s
+        ORDER BY sf.uploaded_at DESC
+    """, (user_id,))
 
-        data = cur.fetchall()
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
 
-        #  Convert datetime to ISO string
-        for row in data:
-            if row["uploaded_at"]:
-                row["uploaded_at"] = row["uploaded_at"].isoformat()
+    # Group by batch_id: batch files go into folders, solo files stay flat
+    batches = {}   # batch_id -> list of files
+    solo = []      # files with no batch_id
 
-        cur.close()
-        conn.close()
+    for row in rows:
+        row["uploaded_at"] = row["uploaded_at"].isoformat() if row["uploaded_at"] else None
+        if row["batch_id"]:
+            bid = row["batch_id"]
+            if bid not in batches:
+                batches[bid] = {"files": [], "zip_filename": row.get("zip_filename", "")}
+            batches[bid]["files"].append(dict(row))
+        else:
+            solo.append(dict(row))
 
-        return jsonify(data)
+    # Build response: mix of solo files and batch folders, sorted by most recent
+    result = []
+
+    for bid, batch_data in batches.items():
+        files = batch_data["files"]
+        most_recent = max(f["uploaded_at"] for f in files)
+        total_vulns = sum(f["vulnerabilities_found"] or 0 for f in files)
+        result.append({
+            "type": "batch",
+            "batch_id": bid,
+            "zip_filename": batch_data.get("zip_filename", ""),
+            "uploaded_at": most_recent,
+            "file_count": len(files),
+            "total_vulnerabilities": total_vulns,
+            "files": files
+        })
+
+    for f in solo:
+        result.append({
+            "type": "file",
+            "id": f["id"],
+            "filename": f["filename"],
+            "uploaded_at": f["uploaded_at"],
+            "vulnerabilities_found": f["vulnerabilities_found"]
+        })
+
+    # Sort everything by uploaded_at descending
+    result.sort(key=lambda x: x["uploaded_at"] or "", reverse=True)
+
+    return jsonify(result)
 
 @app.route("/report/<int:file_id>")
 def get_report(file_id):
@@ -264,6 +531,71 @@ def get_user(user_id):
     conn.close()
 
     return jsonify(user)
+@app.route("/batch-upload", methods=["POST"])
+def batch_upload():
+
+    try:
+
+        if "file" not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        file = request.files["file"]
+        user_id = request.form.get("user_id")
+
+        if not user_id:
+            return jsonify({"error": "User not logged in"}), 400
+
+        if not file.filename.endswith(".zip"):
+            return jsonify({"error": "Upload a ZIP file"}), 400
+
+        batch_id = str(uuid.uuid4())
+
+        zip_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(zip_path)
+
+        extract_dir = os.path.join(UPLOAD_FOLDER, "extracted", batch_id)
+
+        py_files = extract_python_files(zip_path, extract_dir)
+
+        # ZIP buffer for reports
+        zip_buffer = BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as report_zip:
+
+            for path in py_files:
+
+                with open(path, "r", encoding="utf-8") as f:
+                    code = f.read()
+
+                analysis = analyze_code(code)
+
+                suggestions = ""
+                if analysis["status"] == "vulnerable":
+                    suggestions = get_taint_fix_suggestions(code)
+
+                # Generate PDF for this file
+                pdf_bytes = generate_pdf(
+                    os.path.basename(path),
+                    analysis,
+                    suggestions
+                )
+
+                report_name = os.path.basename(path) + "_report.pdf"
+
+                report_zip.writestr(report_name, pdf_bytes)
+
+        zip_buffer.seek(0)
+
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name="VulnERR_Batch_Reports.zip",
+            mimetype="application/zip"
+        )
+
+    except Exception as e:
+        print("BATCH ERROR:", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/user/<int:user_id>", methods=["PUT"])
 def update_user(user_id):
