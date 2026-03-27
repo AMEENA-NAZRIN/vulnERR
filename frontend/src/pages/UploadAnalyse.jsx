@@ -351,7 +351,7 @@ function UploadAnalyse() {
 
                       {openFile === index && (
                         <div className="vuln-body">
-                          {f.vulnerabilities.length === 0 ? (
+                          {!f.vulnerabilities || f.vulnerabilities.length === 0 ? (
                             <p>No vulnerabilities detected</p>
                           ) : (
                             f.vulnerabilities.map((v, i) => (
