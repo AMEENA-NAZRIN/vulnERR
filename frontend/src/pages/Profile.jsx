@@ -1,71 +1,54 @@
-import React, { useState, useEffect, useRef, useNavigate } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { TextField, Button, Box, CircularProgress } from "@mui/material";
 import "./Profile.css";
 
 function Profile() {
   const userId = localStorage.getItem("user_id");
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [user, setUser]               = useState(null);
+  const [editMode, setEditMode]       = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [saving, setSaving]           = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const fileInputRef = useRef();
+  const [toast, setToast]             = useState(null);
+  const fileInputRef                  = useRef();
 
-  const usageOptions = [
-    { value: "personal", label: "PERSONAL PROJECT" },
-    { value: "college", label: "COLLEGE / ACADEMIC" },
-    { value: "work", label: "WORK / PROFESSIONAL" },
-  ];
-
+  // ── fetch user on mount ────────────────────────────────────────────────────
   useEffect(() => {
+    if (!userId) {
+      navigate("/");
+      return;
+    }
     const fetchUser = async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/user/${userId}`);
+        const res  = await fetch(`http://127.0.0.1:5000/user/${userId}`);
         const data = await res.json();
-        setUser({ ...data, usage: data.usage || "" });
-      } catch (error) {
-        console.error("Error fetching user:", error);
+        setUser({ ...data, password: "" }); // never prefill password
+        if (data.avatar) setAvatarPreview(data.avatar);
+      } catch (err) {
+        console.error("Error fetching user:", err);
       } finally {
         setLoading(false);
       }
     };
+    fetchUser();
+  }, [userId, navigate]);
 
-    if (userId) fetchUser();
-  }, [userId]);
-
-  //  Show loading spinner while fetching
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
-          <CircularProgress />
-        </Box>
-      </>
-    );
-  }
-
-  //  If user not found
-  if (!user) {
-    return (
-      <>
-        <Navbar />
-        <div style={{ textAlign: "center", marginTop: "50px" }}>
-          User not found.
-        </div>
-      </>
-    );
-  }
-
-  // Input change handler
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setUser({ ...user, [name]: value });
+  // ── toast helper ──────────────────────────────────────────────────────────
+  const showToast = (msg, type = "info") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
+  // ── input change ──────────────────────────────────────────────────────────
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setUser((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // ── avatar change ─────────────────────────────────────────────────────────
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -74,22 +57,63 @@ function Profile() {
     reader.readAsDataURL(file);
   };
 
+  // ── cancel edit ───────────────────────────────────────────────────────────
+  const handleCancel = () => {
+    setEditMode(false);
+    setUser((prev) => ({ ...prev, password: "" }));
+  };
+
+  // ── save to backend ───────────────────────────────────────────────────────
   const handleSave = async () => {
+    if (!user) return;
     setSaving(true);
+
     try {
-      await fetch(`http://127.0.0.1:5000/user/${userId}`, {
-        method: "PUT",
+      const payload = {
+        username: user.username,
+        email:    user.email,
+      };
+
+      // only send password if user actually typed one
+      if (user.password && user.password.trim() !== "") {
+        payload.password = user.password;
+      }
+
+      // send avatar as base64 if changed
+      if (avatarPreview) {
+        payload.avatar = avatarPreview;
+      }
+
+      const res = await fetch(`http://127.0.0.1:5000/user/${userId}`, {
+        method:  "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(user),
+        body:    JSON.stringify(payload),
       });
-      setEditMode(false);
-    } catch (error) {
-      console.error("Error updating profile:", error);
+
+      if (!res.ok) {
+        showToast("Failed to save changes.", "error");
+      } else {
+        const updated = await res.json();
+        setUser({ ...updated, password: "" });
+        if (updated.avatar) setAvatarPreview(updated.avatar);
+        setEditMode(false);
+        showToast("Profile updated successfully.", "success");
+      }
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      showToast("Connection error.", "error");
     } finally {
       setSaving(false);
     }
   };
 
+  // ── logout ────────────────────────────────────────────────────────────────
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/");
+  };
+
+  // ── loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
       <>
@@ -97,13 +121,14 @@ function Profile() {
         <div className="pf-page">
           <div className="pf-empty">
             <span className="pf-spinner" />
-            <p>LOADING PROFILE...</p>
+            <span>LOADING PROFILE...</span>
           </div>
         </div>
       </>
     );
   }
 
+  // ── user not found ────────────────────────────────────────────────────────
   if (!user) {
     return (
       <>
@@ -111,17 +136,41 @@ function Profile() {
         <div className="pf-page">
           <div className="pf-empty">
             <span className="pf-empty-icon">⬡</span>
-            <p>USER NOT FOUND</p>
+            <span>USER NOT FOUND</span>
           </div>
         </div>
       </>
     );
   }
 
+  // ── render ────────────────────────────────────────────────────────────────
   return (
     <>
       <Navbar />
       <div className="pf-page">
+
+        {/* Toast */}
+        {toast && (
+          <div className={`ua-toast ${toast.type} show`} style={{
+            position: "fixed", bottom: 24, right: 24,
+            fontFamily: "'Share Tech Mono', monospace",
+            fontSize: 12, letterSpacing: 1,
+            padding: "12px 20px", borderRadius: 4,
+            border: "1px solid",
+            zIndex: 9999,
+            background: toast.type === "success" ? "rgba(0,40,20,0.95)"
+                      : toast.type === "error"   ? "rgba(40,0,10,0.95)"
+                      : "rgba(5,5,16,0.95)",
+            color:  toast.type === "success" ? "#00ff88"
+                  : toast.type === "error"   ? "#ff4444"
+                  : "#00ffff",
+            borderColor: toast.type === "success" ? "rgba(0,255,136,0.3)"
+                       : toast.type === "error"   ? "rgba(255,68,68,0.3)"
+                       : "rgba(0,255,255,0.25)",
+          }}>
+            {toast.msg}
+          </div>
+        )}
 
         {/* Header */}
         <div className="pf-header">
@@ -129,11 +178,14 @@ function Profile() {
             <p className="pf-header-meta">ACCOUNT SETTINGS</p>
             <h1 className="pf-header-title">PROFILE</h1>
           </div>
+          <button className="pf-logout-btn" onClick={handleLogout}>
+            ⏻ LOGOUT
+          </button>
         </div>
 
         <div className="pf-body">
 
-          {/* Avatar Section */}
+          {/* ── Avatar Column ── */}
           <div className="pf-avatar-section">
             <div
               className="pf-avatar"
@@ -149,6 +201,8 @@ function Profile() {
                 <div className="pf-avatar-overlay">⬆ UPLOAD</div>
               )}
             </div>
+
+            {/* hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -156,17 +210,16 @@ function Profile() {
               style={{ display: "none" }}
               onChange={handleAvatarChange}
             />
+
             <div className="pf-avatar-name">{user.username}</div>
             <div className="pf-avatar-sub">OPERATOR</div>
           </div>
 
-          {/* Form Section */}
+          {/* ── Form Column ── */}
           <div className="pf-form-section">
-
-            {/* User Details */}
             <div className="pf-section-label">USER DETAILS</div>
-            <div className="pf-fields">
 
+            <div className="pf-fields">
               <div className="pf-field">
                 <label className="pf-label">USERNAME</label>
                 <input
@@ -183,12 +236,14 @@ function Profile() {
                 <input
                   className="pf-input"
                   name="email"
+                  type="email"
                   value={user.email || ""}
                   onChange={handleChange}
                   disabled={!editMode}
                 />
               </div>
 
+              {/* password field only visible in edit mode */}
               {editMode && (
                 <div className="pf-field">
                   <label className="pf-label">NEW PASSWORD</label>
@@ -197,8 +252,8 @@ function Profile() {
                     name="password"
                     type="password"
                     placeholder="Leave blank to keep current"
+                    value={user.password || ""}
                     onChange={handleChange}
-                    disabled={!editMode}
                   />
                 </div>
               )}
@@ -213,13 +268,10 @@ function Profile() {
                     onClick={handleSave}
                     disabled={saving}
                   >
-                    {saving ? <span className="pf-spinner-sm" /> : null}
+                    {saving && <span className="pf-spinner-sm" />}
                     {saving ? "SAVING..." : "⬆ SAVE CHANGES"}
                   </button>
-                  <button
-                    className="pf-btn secondary"
-                    onClick={() => setEditMode(false)}
-                  >
+                  <button className="pf-btn secondary" onClick={handleCancel}>
                     CANCEL
                   </button>
                 </>
@@ -232,8 +284,8 @@ function Profile() {
                 </button>
               )}
             </div>
-
           </div>
+
         </div>
       </div>
     </>
