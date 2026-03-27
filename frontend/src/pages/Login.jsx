@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import "./Auth.css";
 import { loginUser } from "../auth";
+import "./Auth.css";
 
 function Login() {
   const navigate = useNavigate();
@@ -12,36 +11,35 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-  setLoading(true);
-  setError("");
+    setLoading(true);
+    setError("");
 
-  try {
-    const response = await fetch("http://127.0.0.1:5000/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        username : username,   // backend expects email
-        password: password
-      })
-    });
+    try {
+      const response = await fetch("http://127.0.0.1:5000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (response.ok) {
-      loginUser(data.user_id, data.username);
-      navigate("/dashboard");
+      if (response.ok) {
+        // Save login info in localStorage
+        loginUser(data.user_id, data.username);
+        navigate("/dashboard");
+      } else {
+        setError(data.error || "Invalid credentials");
+      }
+    } catch (err) {
+      setError("Server connection failed");
     }
 
-  } catch (err) {
-    setError("Server connection failed");
-  }
+    setLoading(false);
+  };
 
-  setLoading(false);
-};
-
-  const handleKey = (e) => { if (e.key === "Enter") handleLogin(); };
+  const handleKey = (e) => {
+    if (e.key === "Enter") handleLogin();
+  };
 
   return (
     <div className="auth-bg">
@@ -51,7 +49,6 @@ function Login() {
       <div className="auth-card">
         <div className="auth-header">
           <h1 className="auth-title">VULNERR</h1>
-          
         </div>
 
         <div className="auth-divider"><span>AUTHENTICATE</span></div>
@@ -61,9 +58,9 @@ function Login() {
             <label className="field-label">USER_ID</label>
             <input
               className="auth-input"
-              placeholder="enter username"
+              placeholder="Enter username"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               onKeyDown={handleKey}
               autoComplete="username"
             />
@@ -74,9 +71,9 @@ function Login() {
             <input
               className="auth-input"
               type="password"
-              placeholder="enter password"
+              placeholder="Enter password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKey}
               autoComplete="current-password"
             />
@@ -89,7 +86,9 @@ function Login() {
             onClick={handleLogin}
             disabled={loading}
           >
-            {loading ? <span className="btn-loading">VERIFYING<span className="dots" /></span> : "ACCESS SYSTEM"}
+            {loading
+              ? <span className="btn-loading">VERIFYING<span className="dots" /></span>
+              : "ACCESS SYSTEM"}
           </button>
 
           <button

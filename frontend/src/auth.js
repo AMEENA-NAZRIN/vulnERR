@@ -12,6 +12,7 @@ export const logoutUser = () => {
   localStorage.clear();
 };
 
+// Sync — just check localStorage, no API call needed here
 export const isAuthenticated = () => {
   return localStorage.getItem("loggedIn") === "true";
 };
