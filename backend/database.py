@@ -4,11 +4,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
+DB_NAME     = os.getenv("DB_NAME")
+DB_USER     = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
+DB_HOST     = os.getenv("DB_HOST")
+DB_PORT     = os.getenv("DB_PORT")
 
 def get_connection():
     try:
@@ -32,8 +32,14 @@ def create_table():
             id SERIAL PRIMARY KEY,
             username VARCHAR(100) UNIQUE NOT NULL,
             email VARCHAR(150) UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL
+            password_hash TEXT NOT NULL,
+            avatar TEXT
         );
+        """)
+
+        cur.execute("""
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS avatar TEXT;
         """)
 
         cur.execute("""
@@ -43,15 +49,16 @@ def create_table():
             filename TEXT,
             code TEXT,
             batch_id TEXT,
+            zip_filename TEXT,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
-        # Add batch_id and zip_filename columns if they don't exist (for existing DBs)
         cur.execute("""
         ALTER TABLE source_files
         ADD COLUMN IF NOT EXISTS batch_id TEXT;
         """)
+
         cur.execute("""
         ALTER TABLE source_files
         ADD COLUMN IF NOT EXISTS zip_filename TEXT;
@@ -63,43 +70,54 @@ def create_table():
             file_id INTEGER REFERENCES source_files(id),
             report_pdf BYTEA,
             vulnerabilities_found INTEGER,
+            ai_suggestions TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        """)
+
+        cur.execute("""
+        ALTER TABLE reports
+        ADD COLUMN IF NOT EXISTS ai_suggestions TEXT;
         """)
 
         conn.commit()
         cur.close()
         conn.close()
-        print("Table Ready")
+        print("✅ Tables Ready")
 
     except Exception as e:
         print("Table creation error:", e)
 
 
-def save_code_to_db(user_id, filename, code, result, pdf_bytes, vuln_count, batch_id=None, zip_filename=None):
-    conn = None
-    cur = None
+def save_code_to_db(user_id, filename, code, result, pdf_bytes, vuln_count,
+                     batch_id=None, zip_filename=None, suggestions=""):
+    conn    = None
+    cur     = None
+    file_id = None
+    if pdf_bytes is None:
+        pdf_bytes = b""
     try:
         print("Attempting to save to DB")
         conn = get_connection()
-        cur = conn.cursor()
+        cur  = conn.cursor()
 
+        # ── Step 1: Insert source_files FIRST ─────────────
         cur.execute("""
             INSERT INTO source_files (user_id, filename, code, batch_id, zip_filename)
             VALUES (%s, %s, %s, %s, %s)
             RETURNING id;
         """, (user_id, filename, code, batch_id, zip_filename))
 
-        file_id = cur.fetchone()[0]
+        file_id = cur.fetchone()[0]   # ← get id HERE before reports insert
 
+        # ── Step 2: Insert reports SECOND with file_id ────
         cur.execute("""
-            INSERT INTO reports (file_id, report_pdf, vulnerabilities_found)
-            VALUES (%s, %s, %s);
-        """, (file_id, psycopg2.Binary(pdf_bytes), vuln_count))
+            INSERT INTO reports (file_id, report_pdf, vulnerabilities_found, ai_suggestions)
+            VALUES (%s, %s, %s, %s);
+        """, (file_id, psycopg2.Binary(pdf_bytes), vuln_count, suggestions))
 
         conn.commit()
-        print(f"Data stored correctly: file_id={file_id}, batch_id={batch_id}")
-
+        print(f"✅ Saved: file_id={file_id}, batch_id={batch_id}")
         return file_id
 
     except Exception as e:

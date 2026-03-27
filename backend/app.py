@@ -40,6 +40,7 @@ def parse_vulnerabilities(html):
         })
 
     return vulns
+
 app = Flask(__name__)
 CORS(app)
 
@@ -51,6 +52,8 @@ create_table()
 @app.route("/")
 def home():
     return send_from_directory("../frontend", "login.html")
+
+
 @app.route("/upload", methods=["POST"])
 def upload_file():
     try:
@@ -94,10 +97,11 @@ def upload_file():
                     suggestions = get_taint_fix_suggestions(code)
                     vulnerabilities = parse_vulnerabilities(suggestions)
 
-                # Generate and save PDF to DB so download-file-report can fetch it
                 pdf_bytes = generate_pdf(py_filename, analysis, suggestions)
                 vuln_count = len(vulnerabilities)
-                saved_id = save_code_to_db(user_id, py_filename, code, analysis, pdf_bytes, vuln_count, batch_id=batch_id, zip_filename=filename)
+                saved_id = save_code_to_db(user_id, py_filename, code, analysis, pdf_bytes, vuln_count,
+                            batch_id=batch_id, zip_filename=filename, 
+                            suggestions=suggestions)
 
                 results.append({
                     "filename": py_filename,
@@ -121,6 +125,17 @@ def upload_file():
 
             code = file.read().decode("utf-8", errors="ignore")
 
+            if not code.strip():
+                return jsonify({
+                    "batch":          False,
+                    "file_id":        None,
+                    "status":         "safe",
+                    "severity":       "None",
+                    "message":        "Empty file — nothing to analyze",
+                    "confidence":     0.0,
+                    "ai_suggestions": ""
+                })
+
             result = analyze_code(code)
 
             suggestions = ""
@@ -131,24 +146,25 @@ def upload_file():
 
             vuln_count = 1 if result["status"] == "vulnerable" else 0
 
-            # Save all files and capture file_id so frontend can download exact PDF
-            file_id = save_code_to_db(user_id, filename, code, result, pdf_bytes, vuln_count)
+            file_id = save_code_to_db(user_id, filename, code, result, pdf_bytes, vuln_count, suggestions=suggestions)
 
             return jsonify({
-                "batch": False,
-                "file_id": file_id,
-                "status": result["status"],
-                "severity": result["severity"],
-                "message": result["message"],
+                "batch":          False,
+                "file_id":        file_id,
+                "status":         result.get("status", "safe"),
+                "severity":       result.get("severity", "None"),
+                "message":        result.get("message", "Analysis complete"),
+                "confidence":     result.get("confidence", 0.0),
                 "ai_suggestions": suggestions
             })
 
     except Exception as e:
         print("UPLOAD ERROR:", e)
         return jsonify({"error": str(e)}), 500
+
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    #code = request.files["file"].read().decode("utf-8")
     file = request.files["file"]
     code = file.read().decode("utf-8")
     user_id = request.form.get("user_id")
@@ -172,6 +188,8 @@ def analyze():
         "message": result["message"],
         "ai_suggestions": suggestions
     })
+
+
 @app.route("/download-report", methods=["POST"])
 def download_report():
     try:
@@ -210,6 +228,8 @@ def download_report():
     except Exception as e:
         print("ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
+
+
 @app.route("/download-file-report", methods=["POST"])
 def download_file_report():
     try:
@@ -221,14 +241,12 @@ def download_file_report():
         if not user_id:
             return jsonify({"error": "User ID missing"}), 400
 
-        # Fetch the saved PDF from DB using file_id for exact match
         file_id = request.form.get("file_id")
 
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
         if file_id:
-            # Exact match by file_id - most reliable
             cur.execute("""
                 SELECT sf.filename, r.report_pdf
                 FROM source_files sf
@@ -236,7 +254,6 @@ def download_file_report():
                 WHERE sf.id = %s AND sf.user_id = %s
             """, (file_id, user_id))
         else:
-            # Fallback: match by filename + user_id, get most recent
             cur.execute("""
                 SELECT sf.filename, r.report_pdf
                 FROM source_files sf
@@ -267,11 +284,12 @@ def download_file_report():
     except Exception as e:
         print("FILE REPORT ERROR:", e)
         return jsonify({"error": str(e)}), 500
+
+
 @app.route("/download-batch-report", methods=["POST"])
 def download_batch_report():
 
     try:
-        # Accept list of file_ids from the frontend (saved during analysis)
         user_id = request.form.get("user_id")
         file_ids_raw = request.form.get("file_ids", "")
 
@@ -286,10 +304,9 @@ def download_batch_report():
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Fetch all saved results for these file_ids from DB
         cur.execute("""
-            SELECT sf.id, sf.filename, r.report_pdf, r.vulnerabilities_found,
-                   r.created_at
+            SELECT sf.id, sf.filename, r.report_pdf, r.vulnerabilities_found, 
+                r.created_at, r.ai_suggestions                        
             FROM source_files sf
             LEFT JOIN reports r ON sf.id = r.file_id
             WHERE sf.id = ANY(%s) AND sf.user_id = %s
@@ -318,20 +335,17 @@ def download_batch_report():
             else:
                 safe_count += 1
 
-            # Extract suggestions text from saved PDF is not possible,
-            # so we pass empty suggestions — the individual PDFs are already correct.
-            # The batch PDF shows summary + per-file status table.
             results.append({
                 "filename": row["filename"],
-                "status": status,
+                "status":   status,
                 "severity": severity,
-                "message": "Potential taint vulnerability detected" if vuln_count > 0 else "No taint vulnerability detected",
-                "suggestions": ""  # batch summary only; individual PDFs have full details
+                "message":  "Potential taint vulnerability detected" if vuln_count > 0 else "No taint vulnerability detected",
+                "suggestions": row["ai_suggestions"] or ""
             })
 
         batch_data = {
             "batch_id": batch_id,
-            "total_files": len(py_files),
+            "total_files": len(rows),
             "vulnerable_count": vulnerable_count,
             "safe_count": safe_count,
             "files": results
@@ -349,6 +363,8 @@ def download_batch_report():
     except Exception as e:
         print("BATCH REPORT ERROR:", e)
         return jsonify({"error": str(e)}), 500
+
+
 @app.route("/signup", methods=["POST"])
 def signup():
     try:
@@ -374,9 +390,8 @@ def signup():
             """,
             (username, email, hashed_password.decode())
         )
-        
+
         conn.commit()
-        #print("User inserted with ID:", user_id)
         cur.close()
         conn.close()
 
@@ -385,7 +400,8 @@ def signup():
     except Exception as e:
         print("SIGNUP ERROR:", e)
         return jsonify({"error": str(e)}), 500
-    
+
+
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -409,7 +425,8 @@ def login():
         })
     else:
         return jsonify({"error": "Invalid credentials"}), 401
-    
+
+
 @app.route("/dashboard/<int:user_id>")
 def my_reports(user_id):
     print("Fetching reports for user:", user_id)
@@ -429,9 +446,8 @@ def my_reports(user_id):
     cur.close()
     conn.close()
 
-    # Group by batch_id: batch files go into folders, solo files stay flat
-    batches = {}   # batch_id -> list of files
-    solo = []      # files with no batch_id
+    batches = {}
+    solo = []
 
     for row in rows:
         row["uploaded_at"] = row["uploaded_at"].isoformat() if row["uploaded_at"] else None
@@ -443,7 +459,6 @@ def my_reports(user_id):
         else:
             solo.append(dict(row))
 
-    # Build response: mix of solo files and batch folders, sorted by most recent
     result = []
 
     for bid, batch_data in batches.items():
@@ -469,10 +484,10 @@ def my_reports(user_id):
             "vulnerabilities_found": f["vulnerabilities_found"]
         })
 
-    # Sort everything by uploaded_at descending
     result.sort(key=lambda x: x["uploaded_at"] or "", reverse=True)
 
     return jsonify(result)
+
 
 @app.route("/report/<int:file_id>")
 def get_report(file_id):
@@ -495,8 +510,6 @@ def get_report(file_id):
         if not row:
             return jsonify({"error": "Report not found"}), 404
 
-        # Convert PDF bytes to base64 so frontend can embed it
-        
         pdf_base64 = None
         if row["report_pdf"]:
             pdf_base64 = base64.b64encode(bytes(row["report_pdf"])).decode("utf-8")
@@ -513,24 +526,120 @@ def get_report(file_id):
     except Exception as e:
         print("REPORT FETCH ERROR:", e)
         return jsonify({"error": str(e)}), 500
-    
-@app.route("/user/<int:user_id>")
+
+
+# ── GET /user/<id> ─────────────────────────────────────────────────────────────
+# Returns user details (excluding password_hash). Avatar is returned as base64.
+@app.route("/user/<int:user_id>", methods=["GET"])
 def get_user(user_id):
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute("""
-        SELECT *
-        FROM users
-        WHERE id = %s
-    """, (user_id,))
+        cur.execute("""
+            SELECT id, username, email, avatar
+            FROM users
+            WHERE id = %s
+        """, (user_id,))
 
-    user = cur.fetchone()
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
 
-    cur.close()
-    conn.close()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
 
-    return jsonify(user)
+        return jsonify({
+            "id":       user["id"],
+            "username": user["username"],
+            "email":    user["email"],
+            "avatar":   user["avatar"]   # base64 string or None
+        })
+
+    except Exception as e:
+        print("GET USER ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+# ── PUT /user/<id> ─────────────────────────────────────────────────────────────
+# Updates username, email, optionally password and avatar.
+@app.route("/user/<int:user_id>", methods=["PUT"])
+def update_user(user_id):
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        username = data.get("username")
+        email    = data.get("email")
+        password = data.get("password")   # optional — only update if provided
+        avatar   = data.get("avatar")     # optional base64 string
+
+        if not username or not email:
+            return jsonify({"error": "Username and email are required"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Check if new username is already taken by someone else
+        cur.execute("""
+            SELECT id FROM users WHERE username = %s AND id != %s
+        """, (username, user_id))
+        if cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({"error": "Username already taken"}), 409
+
+        # Check if new email is already taken by someone else
+        cur.execute("""
+            SELECT id FROM users WHERE email = %s AND id != %s
+        """, (email, user_id))
+        if cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({"error": "Email already in use"}), 409
+
+        # Build query dynamically based on what was provided
+        if password and password.strip() != "":
+            # Hash the new password before saving
+            hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+            cur.execute("""
+                UPDATE users
+                SET username = %s, email = %s, password_hash = %s, avatar = %s
+                WHERE id = %s
+            """, (username, email, hashed, avatar, user_id))
+        else:
+            # No password change — only update other fields
+            cur.execute("""
+                UPDATE users
+                SET username = %s, email = %s, avatar = %s
+                WHERE id = %s
+            """, (username, email, avatar, user_id))
+
+        conn.commit()
+
+        # Return the updated user (excluding password_hash)
+        cur.execute("""
+            SELECT id, username, email, avatar FROM users WHERE id = %s
+        """, (user_id,))
+        updated = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "id":       updated["id"],
+            "username": updated["username"],
+            "email":    updated["email"],
+            "avatar":   updated["avatar"]
+        })
+
+    except Exception as e:
+        print("UPDATE USER ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/batch-upload", methods=["POST"])
 def batch_upload():
 
@@ -557,7 +666,6 @@ def batch_upload():
 
         py_files = extract_python_files(zip_path, extract_dir)
 
-        # ZIP buffer for reports
         zip_buffer = BytesIO()
 
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as report_zip:
@@ -573,7 +681,6 @@ def batch_upload():
                 if analysis["status"] == "vulnerable":
                     suggestions = get_taint_fix_suggestions(code)
 
-                # Generate PDF for this file
                 pdf_bytes = generate_pdf(
                     os.path.basename(path),
                     analysis,
@@ -597,22 +704,6 @@ def batch_upload():
         print("BATCH ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
-@app.route("/user/<int:user_id>", methods=["PUT"])
-def update_user(user_id):
-    data = request.json
-    conn = get_connection()
-    cur = conn.cursor()
 
-    cur.execute("""
-        UPDATE users
-        SET username=%s, email=%s
-        WHERE id=%s
-    """, (data["username"], data["email"], user_id,))
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    return jsonify({"message": "Profile updated successfully"})
 if __name__ == "__main__":
     app.run(debug=True)
