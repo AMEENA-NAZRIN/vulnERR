@@ -1,6 +1,7 @@
 trained_model/
 model_training/
 frontend/node_modules
+best_codebert_vuldet
 
 __pycache__/
 *.pyc
