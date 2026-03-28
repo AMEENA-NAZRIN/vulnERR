@@ -1,0 +1,13 @@
+trained_model/
+model_training/
+frontend/node_modules
+best_codebert_vuldet
+
+__pycache__/
+*.pyc
+.env
+.vscode/
+venv/
+backend/.venv
+reports/
+backend/uploads/
