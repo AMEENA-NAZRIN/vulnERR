@@ -32,6 +32,14 @@ OUTPUT RULES:
 - Keep spacing compact (no large gaps).
 - Provide a secure fix with heading <h4>Secure Fix</h4>
 - Always generate complete fixes.
+- CRITICAL: For ALL code blocks in the secure fix, wrap them in <pre><code> tags.
+- CRITICAL: Each line of code MUST be on its own line inside <pre><code> tags.
+- CRITICAL: Never put code on a single line. Always use proper line breaks.
+- Example of correct code format:
+  <pre><code>def secure_function():
+    user_input = input("Enter: ")
+    result = safe_eval(user_input)
+    return result</code></pre>
 """
                 },
                 {
@@ -44,7 +52,9 @@ For each vulnerability:
 2. Write: Vulnerability occurred at line X
 3. Next line: show ONLY the exact vulnerable code line highlighted in red.
 4. Explain briefly why it is dangerous.
-5. Provide full secure fix.
+5. Provide full secure fix wrapped in <pre><code> tags with each line of code on its own line.
+
+IMPORTANT: In the secure fix code block, each statement must be on a new line. Never compress code onto one line.
 
 Code:
 {numbered_code}

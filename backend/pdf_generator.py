@@ -1,6 +1,6 @@
 import os
 import re
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Preformatted
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
@@ -12,7 +12,6 @@ os.makedirs(REPORT_FOLDER, exist_ok=True)
 
 
 def _escape_xml(text):
-    """Escape special XML characters for ReportLab Paragraphs."""
     return (
         text.replace("&", "&amp;")
             .replace("<", "&lt;")
@@ -22,11 +21,6 @@ def _escape_xml(text):
 
 
 def _parse_suggestions_to_elements(suggestions, styles):
-    """
-    Parse the HTML suggestions from LLaMA into ReportLab elements.
-    Handles h3, h4, p (with inline spans), pre, code, li tags.
-    Returns a list of ReportLab flowable elements.
-    """
     normal_style = styles["BodyText"]
     subheading_style = styles["Heading3"]
 
@@ -35,11 +29,14 @@ def _parse_suggestions_to_elements(suggestions, styles):
         parent=normal_style,
         fontName="Courier",
         fontSize=8,
-        leading=12,
-        textColor=colors.HexColor("#cc0000"),
+        leading=13,
+        textColor=colors.HexColor("#333333"),
         backColor=colors.HexColor("#f5f5f5"),
         leftIndent=10,
+        rightIndent=10,
         spaceAfter=4,
+        spaceBefore=4,
+        borderPadding=6,
     )
 
     vuln_title_style = ParagraphStyle(
@@ -47,18 +44,29 @@ def _parse_suggestions_to_elements(suggestions, styles):
         parent=subheading_style,
         textColor=colors.HexColor("#cc0000"),
         spaceAfter=6,
+        spaceBefore=10,
+    )
+
+    highlight_style = ParagraphStyle(
+        "HighlightStyle",
+        parent=normal_style,
+        textColor=colors.HexColor("#cc0000"),
+        fontName="Courier-Bold",
+        fontSize=9,
+        backColor=colors.HexColor("#fff0f0"),
+        leftIndent=10,
+        spaceAfter=4,
     )
 
     elements = []
     soup = BeautifulSoup(suggestions, "html.parser")
 
-    # Walk top-level children to preserve document order
     def process_node(node):
         if isinstance(node, NavigableString):
             text = str(node).strip()
             if text:
                 elements.append(Paragraph(_escape_xml(text), normal_style))
-                elements.append(Spacer(1, 4))
+                elements.append(Spacer(1, 3))
             return
 
         if not isinstance(node, Tag):
@@ -70,17 +78,18 @@ def _parse_suggestions_to_elements(suggestions, styles):
         if tag == "h3":
             text = node.get_text().strip()
             if text:
-                elements.append(Spacer(1, 10))
+                elements.append(Spacer(1, 12))
                 elements.append(Paragraph(_escape_xml(text), vuln_title_style))
 
-        # Sub-heading (e.g. "Secure Fix")
+        # Sub-heading e.g. "Secure Fix"
         elif tag == "h4":
             text = node.get_text().strip()
             if text:
-                elements.append(Spacer(1, 6))
+                elements.append(Spacer(1, 8))
                 elements.append(Paragraph(f"<b>{_escape_xml(text)}</b>", normal_style))
+                elements.append(Spacer(1, 4))
 
-        # Paragraph — rebuild inline to catch <span> highlighted code
+        # Paragraph — walk children to preserve spans and inline code
         elif tag == "p":
             parts = []
             for child in node.children:
@@ -91,11 +100,11 @@ def _parse_suggestions_to_elements(suggestions, styles):
                 elif isinstance(child, Tag):
                     child_text = child.get_text()
                     if child.name == "span":
-                        # Highlighted vulnerable code — show in red bold
+                        # Highlighted vulnerable line — red bold
                         parts.append(
                             f'<font color="#cc0000"><b>{_escape_xml(child_text)}</b></font>'
                         )
-                    elif child.name in ("code", "pre"):
+                    elif child.name in ("code",):
                         parts.append(
                             f'<font name="Courier" size="8">{_escape_xml(child_text)}</font>'
                         )
@@ -107,11 +116,38 @@ def _parse_suggestions_to_elements(suggestions, styles):
                 elements.append(Paragraph(combined, normal_style))
                 elements.append(Spacer(1, 4))
 
-        # Code / pre blocks
-        elif tag in ("pre", "code"):
-            text = node.get_text().strip()
+        # Pre blocks — preserve ALL line breaks using Preformatted
+        elif tag == "pre":
+            # Get inner code tag if present, else raw text
+            code_tag = node.find("code")
+            raw = code_tag.get_text() if code_tag else node.get_text()
+
+            # Normalize line endings
+            raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+
+            # Strip leading/trailing blank lines but preserve internal structure
+            lines = raw.split("\n")
+            # Remove leading empty lines
+            while lines and not lines[0].strip():
+                lines.pop(0)
+            # Remove trailing empty lines
+            while lines and not lines[-1].strip():
+                lines.pop()
+
+            if lines:
+                text = "\n".join(lines)
+                # Preformatted preserves whitespace exactly
+                elements.append(Preformatted(_escape_xml(text), code_style))
+                elements.append(Spacer(1, 6))
+
+        # Standalone code (not inside pre)
+        elif tag == "code":
+            # Only process if not already handled inside pre
+            if node.parent and node.parent.name == "pre":
+                return
+            text = node.get_text().replace("\r\n", "\n").replace("\r", "\n").strip()
             if text:
-                elements.append(Paragraph(_escape_xml(text), code_style))
+                elements.append(Preformatted(_escape_xml(text), code_style))
                 elements.append(Spacer(1, 4))
 
         # List items
@@ -121,8 +157,15 @@ def _parse_suggestions_to_elements(suggestions, styles):
                 elements.append(Paragraph(f"• {_escape_xml(text)}", normal_style))
                 elements.append(Spacer(1, 3))
 
-        # Recurse into divs or other containers
-        elif tag in ("div", "section", "ul", "ol"):
+        # Span at top level (highlighted vulnerable line)
+        elif tag == "span":
+            text = node.get_text().strip()
+            if text:
+                elements.append(Paragraph(_escape_xml(text), highlight_style))
+                elements.append(Spacer(1, 4))
+
+        # Recurse into container tags
+        elif tag in ("div", "section", "ul", "ol", "body", "html"):
             for child in node.children:
                 process_node(child)
 
@@ -133,51 +176,43 @@ def _parse_suggestions_to_elements(suggestions, styles):
 
 
 def generate_pdf(filename, result, suggestions):
-    """Generate a single-file vulnerability report PDF. Returns bytes."""
-
     try:
         buffer = BytesIO()
-
         styles = getSampleStyleSheet()
         title_style = styles["Heading1"]
         heading_style = styles["Heading2"]
         normal_style = styles["BodyText"]
 
-        doc = SimpleDocTemplate(buffer, leftMargin=0.75 * inch, rightMargin=0.75 * inch)
+        doc = SimpleDocTemplate(
+            buffer,
+            leftMargin=0.75 * inch,
+            rightMargin=0.75 * inch,
+            topMargin=0.75 * inch,
+            bottomMargin=0.75 * inch,
+        )
         elements = []
 
-        # Title
         elements.append(Paragraph("VulnERR Security Report", title_style))
         elements.append(Spacer(1, 20))
-
         elements.append(Paragraph(f"<b>File Name:</b> {_escape_xml(filename)}", normal_style))
         elements.append(Spacer(1, 10))
 
-        # Analysis summary
         elements.append(Paragraph("<b>Analysis Result</b>", heading_style))
         elements.append(Spacer(1, 5))
-
         elements.append(Paragraph(f"Status: {_escape_xml(result.get('status', ''))}", normal_style))
         elements.append(Paragraph(f"Severity: {_escape_xml(result.get('severity', ''))}", normal_style))
         elements.append(Paragraph(f"Message: {_escape_xml(result.get('message', ''))}", normal_style))
-
         elements.append(Spacer(1, 20))
 
-        # Vulnerability section
         if suggestions and suggestions.strip():
             elements.append(Paragraph("Detected Vulnerabilities &amp; Secure Fix", heading_style))
             elements.append(Spacer(1, 10))
-
             suggestion_elements = _parse_suggestions_to_elements(suggestions, styles)
             elements.extend(suggestion_elements)
-
             if not suggestion_elements:
                 elements.append(Paragraph("No vulnerability details could be parsed.", normal_style))
         else:
-            elements.append(Paragraph(
-                "No vulnerabilities detected in this file.",
-                normal_style
-            ))
+            elements.append(Paragraph("No vulnerabilities detected in this file.", normal_style))
 
         doc.build(elements)
         return buffer.getvalue()
@@ -188,23 +223,24 @@ def generate_pdf(filename, result, suggestions):
 
 
 def generate_batch_pdf(batch_data):
-
     try:
         buffer = BytesIO()
-
         styles = getSampleStyleSheet()
         title_style = styles["Heading1"]
         heading_style = styles["Heading2"]
         normal_style = styles["BodyText"]
 
-        doc = SimpleDocTemplate(buffer, leftMargin=0.75 * inch, rightMargin=0.75 * inch)
+        doc = SimpleDocTemplate(
+            buffer,
+            leftMargin=0.75 * inch,
+            rightMargin=0.75 * inch,
+            topMargin=0.75 * inch,
+            bottomMargin=0.75 * inch,
+        )
         elements = []
 
-        # Title
         elements.append(Paragraph("VulnERR Batch Security Report", title_style))
         elements.append(Spacer(1, 20))
-
-        # Batch Info
         elements.append(Paragraph(f"<b>Batch ID:</b> {_escape_xml(str(batch_data['batch_id']))}", normal_style))
         elements.append(Spacer(1, 10))
 
@@ -212,18 +248,11 @@ def generate_batch_pdf(batch_data):
         elements.append(Paragraph(f"Total Files Scanned: {batch_data['total_files']}", normal_style))
         elements.append(Paragraph(f"Vulnerable Files: {batch_data['vulnerable_count']}", normal_style))
         elements.append(Paragraph(f"Safe Files: {batch_data['safe_count']}", normal_style))
-
         elements.append(Spacer(1, 20))
 
-        # Summary table
         table_data = [["#", "Filename", "Status", "Severity"]]
         for i, file in enumerate(batch_data["files"], 1):
-            table_data.append([
-                str(i),
-                file["filename"],
-                file["status"],
-                file["severity"]
-            ])
+            table_data.append([str(i), file["filename"], file["status"], file["severity"]])
 
         table = Table(table_data, colWidths=[0.4 * inch, 3 * inch, 1.2 * inch, 1.2 * inch])
         table.setStyle(TableStyle([
@@ -233,11 +262,9 @@ def generate_batch_pdf(batch_data):
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0f0f0")]),
         ]))
-
         elements.append(table)
         elements.append(Spacer(1, 30))
 
-        # Detailed results
         elements.append(Paragraph("Detailed Vulnerability Report", heading_style))
         elements.append(Spacer(1, 20))
 
@@ -250,12 +277,8 @@ def generate_batch_pdf(batch_data):
             if file.get("suggestions") and file["suggestions"].strip():
                 elements.append(Paragraph("<b>AI Suggestions:</b>", heading_style))
                 elements.append(Spacer(1, 5))
-
                 suggestion_elements = _parse_suggestions_to_elements(file["suggestions"], styles)
                 elements.extend(suggestion_elements)
-
-                if not suggestion_elements:
-                    elements.append(Paragraph("No details parsed.", normal_style))
             else:
                 elements.append(Paragraph("No AI suggestions available.", normal_style))
 

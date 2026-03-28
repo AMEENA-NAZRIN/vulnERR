@@ -1,5 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
+/* ── Reset ── */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ── Page ── */
 .db-page {
   width: 100%;
   min-height: calc(100vh - 64px);
@@ -7,6 +18,7 @@
   padding: 40px 48px;
   font-family: 'Share Tech Mono', monospace;
   color: #00ffff;
+  box-sizing: border-box;
 }
 
 body.light-mode .db-page {
@@ -108,16 +120,15 @@ body.light-mode .db-section-label {
   background: rgba(0,255,255,0.02);
   border: 1px solid rgba(0,255,255,0.12);
   border-radius: 4px;
-  padding: 20px;
   cursor: pointer;
   transition: all 0.25s;
+  overflow: hidden;
 }
 
 .db-card:hover {
   border-color: rgba(0,255,255,0.4);
   background: rgba(0,255,255,0.05);
   box-shadow: 0 0 20px rgba(0,255,255,0.08);
-  transform: translateY(-2px);
 }
 
 .db-card.active {
@@ -135,18 +146,10 @@ body.light-mode .db-card:hover {
   border-color: rgba(10,10,46,0.35);
   background: rgba(255,255,255,0.95);
   box-shadow: 0 4px 16px rgba(10,10,46,0.12);
-  transform: translateY(-2px);
 }
 
 body.light-mode .db-card.active {
   border-color: #0a0a2e;
-}
-
-.db-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
 }
 
 .db-card-icon {
@@ -164,6 +167,7 @@ body.light-mode .db-card-icon {
   padding: 3px 8px;
   border-radius: 2px;
   border: 1px solid;
+  white-space: nowrap;
 }
 
 .db-card-badge.vuln {
@@ -268,94 +272,11 @@ body.light-mode .db-spinner {
 .db-divider {
   height: 1px;
   background: rgba(0,255,255,0.08);
-  margin: 24px 0;
+  margin: 20px 0;
 }
 
 body.light-mode .db-divider {
   background: rgba(10,10,46,0.08);
-}
-
-/* Detail panel */
-.db-detail {
-  margin-top: 2rem;
-  background: rgba(0,255,255,0.02);
-  border: 1px solid rgba(0,255,255,0.12);
-  border-radius: 4px;
-  padding: 28px;
-  animation: fadeIn 0.3s ease;
-}
-
-body.light-mode .db-detail {
-  background: rgba(255,255,255,0.7);
-  border-color: rgba(10,10,46,0.1);
-  box-shadow: 0 2px 12px rgba(10,10,46,0.06);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.db-detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.db-detail-filename {
-  font-family: 'Orbitron', monospace;
-  font-size: 16px;
-  font-weight: 700;
-  color: #00ffff;
-  letter-spacing: 2px;
-  margin: 6px 0 4px;
-}
-
-body.light-mode .db-detail-filename {
-  color: #0a0a2e;
-}
-
-.db-detail-date {
-  font-size: 10px;
-  color: rgba(0,255,255,0.35);
-  letter-spacing: 1px;
-}
-
-body.light-mode .db-detail-date {
-  color: rgba(10,10,46,0.4);
-}
-
-.db-detail-badge {
-  font-size: 10px;
-  letter-spacing: 2px;
-  padding: 6px 14px;
-  border-radius: 2px;
-  border: 1px solid;
-  white-space: nowrap;
-}
-
-.db-detail-badge.vuln {
-  color: #ff4444;
-  border-color: rgba(255,68,68,0.4);
-  background: rgba(255,68,68,0.05);
-}
-
-.db-detail-badge.safe {
-  color: #00ff88;
-  border-color: rgba(0,255,136,0.4);
-  background: rgba(0,255,136,0.05);
-}
-
-body.light-mode .db-detail-badge.vuln {
-  background: rgba(255,68,68,0.08);
-}
-
-body.light-mode .db-detail-badge.safe {
-  color: #008844;
-  border-color: rgba(0,180,80,0.3);
-  background: rgba(0,180,80,0.08);
 }
 
 /* Source code */
@@ -395,6 +316,7 @@ body.light-mode .db-code::-webkit-scrollbar-thumb {
   height: 600px;
   border: 1px solid rgba(0,255,255,0.1);
   border-radius: 4px;
+  display: block;
 }
 
 body.light-mode .db-pdf {
@@ -419,18 +341,13 @@ body.light-mode .db-no-report {
   border-color: rgba(10,10,46,0.08);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .db-page { padding: 24px 20px; }
-  .db-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .db-detail-header { flex-direction: column; }
-}
-
+/* Link */
 .db-link {
   color: #00ffff;
   text-decoration: underline;
   cursor: pointer;
   letter-spacing: 1px;
+  font-size: 11px;
 }
 
 .db-link:hover {
@@ -443,111 +360,10 @@ body.light-mode .db-link {
 
 body.light-mode .db-link:hover {
   color: #6c63ff;
-/* ── Reset scroll locks ── */
-html,
-body,
-#root {
-  height: auto !important;
-  min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto !important;
-  position: static !important;
 }
 
-/* ── Dashboard wrapper ── */
-.dashboard-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  min-height: 100vh;
-}
-
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.create-btn {
-  padding: 0.5rem 1rem;
-  background-color: #6c63ff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.create-btn:hover {
-  background-color: #5750d4;
-}
-
-.projects-list ul {
-  list-style: none;
-  padding: 0;
-}
-
-.project-item {
-  padding: 0.5rem 1rem;
-  margin-bottom: 0.5rem;
-  background-color: #f4f6f8;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-}
-
-.project-item:hover {
-  background-color: #e0e4eb;
-}
-
-/* ── MUI card overrides ── */
-.MuiCard-root {
-  transition: transform 0.2s, box-shadow 0.2s;
-  /* Never let a card clip the page scroll */
-  overflow: visible !important;
-}
-
-.MuiCard-root:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* ── Expanded detail panel ── */
-.project-details {
-  margin-top: 2rem;
-  padding: 1rem;
-  background-color: #f9f9f9;
-  border-left: 4px solid #6c63ff;
-  border-radius: 6px;
-}
-
-.project-details pre {
-  background-color: #eee;
-  padding: 1rem;
-  border-radius: 6px;
-  overflow-x: auto;
-}
-
-/* ── MUI Collapse: never clip height ── */
-.MuiCollapse-root,
-.MuiCollapse-wrapper,
-.MuiCollapse-wrapperInner {
-  overflow: visible !important;
-}
-
-/* ── Source code box inside detail panel ── */
-.dashboard-code-box {
-  max-height: 280px;
-  overflow-y: auto;
-  overflow-x: auto;
-}
-
-/* ── PDF iframe ── */
-.dashboard-pdf-frame {
-  width: 100%;
-  height: 500px;
-  border: none;
-  border-radius: 4px;
-  display: block;
-}
+/* Responsive */
+@media (max-width: 768px) {
+  .db-page { padding: 24px 20px; }
+  .db-header { flex-direction: column; align-items: flex-start; gap: 12px; }
 }

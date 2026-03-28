@@ -673,3 +673,39 @@ body.light-mode .vuln-body pre{
 body.light-mode .ua-panel.suggestions{
   background:#ffffff;
 }
+/* Fix code formatting inside AI suggestions */
+.vuln-body pre {
+  white-space: pre-wrap !important;
+  word-break: break-word;
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  color: #00ffcc;
+  overflow-x: auto;
+  display: block;
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.vuln-body code {
+  white-space: pre-wrap !important;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  color: #00ffcc;
+  display: block;
+  line-height: 1.6;
+}
+
+/* Light mode */
+body.light-mode .vuln-body pre {
+  background: rgba(10, 10, 46, 0.04);
+  border-color: rgba(10, 10, 46, 0.15);
+  color: #0a0a2e;
+}
+
+body.light-mode .vuln-body code {
+  color: #0a0a2e;
+}
