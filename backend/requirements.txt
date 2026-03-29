@@ -7,7 +7,7 @@ flask==3.0.3
 flask-cors==4.0.1
 psycopg2-binary==2.9.9
 gunicorn==21.2.0
-torch==2.5.1+cpu
+torch==2.5.1
 transformers==4.46.0
 requests==2.32.3
 bcrypt==4.2.0
