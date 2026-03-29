@@ -87,12 +87,12 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 #create_table()
-
+'''
 @app.route("/")
 def home():
     return send_from_directory("../frontend", "login.html")
 
-
+'''
 @app.route("/upload", methods=["POST"])
 def upload_file():
     try:
