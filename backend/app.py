@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+'''
 from database import get_connection, create_table, save_code_to_db
 from psycopg2.extras import RealDictCursor
 import psycopg2
@@ -15,6 +16,7 @@ import uuid
 import zipfile
 from zip_handler import extract_python_files
 from pdf_generator import generate_batch_pdf
+'''
 
 print("🚀 VulnERR Flask starting...")
 print(f"PORT: {os.getenv('PORT', 5000)}")
