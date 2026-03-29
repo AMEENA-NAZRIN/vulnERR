@@ -80,7 +80,7 @@ def health():
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-create_table()
+#create_table()
 
 @app.route("/")
 def home():
