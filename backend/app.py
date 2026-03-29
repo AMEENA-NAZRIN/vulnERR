@@ -91,29 +91,26 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @app.route("/")
 def home():
     return """
-    <!DOCTYPE html>
-    <html>
-    <head><title>VulnERR 🚀</title>
-    <style>body{max-width:600px;margin:50px auto;padding:20px;background:#1a1a2e;color:white;font-family:sans-serif;}
-    h1{font-size:3em;text-align:center;background:linear-gradient(45deg,#ff6b6b,#4ecdc4);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-    a{padding:15px 30px;background:#16213e;border:none;border-radius:50px;color:white;text-decoration:none;font-weight:bold;display:inline-block;margin:10px;transition:all .3s;}
-    a:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(0,0,0,0.3);}
-    .status{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:30px 0;}
-    .status div{padding:15px;background:#0f3460;border-radius:10px;}</style>
-    </head>
-    <body>
-    <h1>🎉 VulnERR Backend LIVE!</h1>
-    <div class="status">
-    <div><a href="/test">/test → JSON</a></div>
-    <div><a href="/health">/health → OK</a></div>
-    </div>
-    <center>
-    <a href="https://deligint-vision.railway.app/test" style="background:#00d4aa;font-size:1.2em;">TEST BACKEND → JSON</a>
-    </center>
-    <p style="text-align:center;margin-top:30px;color:#888;">Backend 100% → Frontend deploy next!</p>
-    </body>
-    </html>
-    """
+<!DOCTYPE html>
+<html>
+<head><title>VulnERR 🚀</title>
+<style>body{padding:40px;background:#0a0a0a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:0 auto;}
+h1{font-size:3.5rem;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;}
+.btn{display:inline-block;padding:15px 30px;background:#ff6b6b;border:none;border-radius:50px;color:white;text-decoration:none;font-weight:600;font-size:1.1rem;margin:10px;transition:all .3s;box-shadow:0 4px 15px rgba(0,0,0,0.3);}
+.btn:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.4);}
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin:40px 0;}
+.status div{padding:20px;background:rgba(255,255,255,0.05);border-radius:15px;border:1px solid rgba(255,255,255,0.1);}</style>
+</head>
+<body>
+<h1>🎯 VulnERR Backend LIVE!</h1>
+<div class="status">
+<div><a href="/test" class="btn">/test → JSON API</a></div>
+<div><a href="/health" class="btn">/health → Status</a></div>
+<div><a href="/upload" class="btn">/upload → File API</a></div>
+</div>
+<p style="text-align:center;color:#888;font-size:1.1rem;">Backend 100% Ready → <strong>API LIVE</strong> → Frontend deploy next!</p>
+</body>
+</html>"""
 
 
 @app.route("/upload", methods=["POST"])
