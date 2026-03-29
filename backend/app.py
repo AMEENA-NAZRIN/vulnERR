@@ -47,7 +47,7 @@ def parse_vulnerabilities(html):
     return vulns
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["*"])
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
