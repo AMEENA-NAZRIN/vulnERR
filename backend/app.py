@@ -52,12 +52,14 @@ def parse_vulnerabilities(html):
 app = Flask(__name__)
 CORS(app, origins=["*"])
 
-def test():
-    return jsonify({"status": "Flask ALIVE", "timestamp": "2026-03-29"})
-
 @app.route('/test')
 def test():
-    return jsonify({"status": "Flask ALIVE", "timestamp": "2026-03-29"})
+    return jsonify({
+        "status": "VulnERR Backend LIVE! 🎉",
+        "flask": "working", 
+        "health": "ok",
+        "ready_for": "frontend"
+    })
 
 @app.route('/health')
 def health():
