@@ -3,7 +3,7 @@ import Navbar from "../components/Navbar";
 import "./UploadAnalyse.css";
 import { marked } from "marked";
 
-const ALLOWED_EXTENSIONS = [".py", ".js", ".java", ".cpp", ".c", ".zip"];
+const ALLOWED_EXTENSIONS = [".py", ".zip"];
 
 function UploadAnalyse() {
   const [file, setFile] = useState(null);
