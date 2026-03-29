@@ -55,6 +55,10 @@ CORS(app, origins=["*"])
 def test():
     return jsonify({"status": "Flask ALIVE", "timestamp": "2026-03-29"})
 
+@app.route('/test')
+def test():
+    return jsonify({"status": "Flask ALIVE", "timestamp": "2026-03-29"})
+
 @app.route('/health')
 def health():
     return jsonify({"status": "healthy", "flask": "loaded"})
