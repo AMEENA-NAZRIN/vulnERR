@@ -368,7 +368,7 @@ def download_batch_report():
 @app.route("/signup", methods=["POST"])
 def signup():
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
 
         if not data:
             return jsonify({"error": "No JSON received"}), 400
@@ -404,7 +404,7 @@ def signup():
 
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    data = request.get_json(force=True)
     username = data.get("username")
     password = data["password"].encode()
 
@@ -566,7 +566,7 @@ def get_user(user_id):
 @app.route("/user/<int:user_id>", methods=["PUT"])
 def update_user(user_id):
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
 
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -706,4 +706,5 @@ def batch_upload():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
