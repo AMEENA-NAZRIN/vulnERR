@@ -49,6 +49,22 @@ def parse_vulnerabilities(html):
 app = Flask(__name__)
 CORS(app, origins=["*"])
 
+@app.route('/health')
+def health():
+    try:
+        conn = get_connection()
+        conn.close()
+        print("🩺 Health OK - DB connected")
+        return jsonify({
+            "status": "healthy",
+            "db": True,
+            "model": "CodeBERT loaded",
+            "python": os.sys.version
+        })
+    except:
+        print("🩺 Health FAIL - DB issue")
+        return jsonify({"status": "unhealthy", "db": False}), 503
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
