@@ -90,7 +90,30 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/")
 def home():
-    return send_from_directory("frontend/dist", "index.html")
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><title>VulnERR 🚀</title>
+    <style>body{max-width:600px;margin:50px auto;padding:20px;background:#1a1a2e;color:white;font-family:sans-serif;}
+    h1{font-size:3em;text-align:center;background:linear-gradient(45deg,#ff6b6b,#4ecdc4);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    a{padding:15px 30px;background:#16213e;border:none;border-radius:50px;color:white;text-decoration:none;font-weight:bold;display:inline-block;margin:10px;transition:all .3s;}
+    a:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(0,0,0,0.3);}
+    .status{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:30px 0;}
+    .status div{padding:15px;background:#0f3460;border-radius:10px;}</style>
+    </head>
+    <body>
+    <h1>🎉 VulnERR Backend LIVE!</h1>
+    <div class="status">
+    <div><a href="/test">/test → JSON</a></div>
+    <div><a href="/health">/health → OK</a></div>
+    </div>
+    <center>
+    <a href="https://deligint-vision.railway.app/test" style="background:#00d4aa;font-size:1.2em;">TEST BACKEND → JSON</a>
+    </center>
+    <p style="text-align:center;margin-top:30px;color:#888;">Backend 100% → Frontend deploy next!</p>
+    </body>
+    </html>
+    """
 
 
 @app.route("/upload", methods=["POST"])
