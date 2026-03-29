@@ -1,37 +1,36 @@
 import psycopg2
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 def get_connection():
     try:
         DATABASE_URL = os.getenv("DATABASE_URL")
-
-        # 🚀 If running on Railway
+        
+        print(f"🔍 DB Mode: {'Railway' if DATABASE_URL else 'Local'}")
+        
+        # 🚀 Railway Cloud DB
         if DATABASE_URL:
-            # Fix for postgres:// issue
             if DATABASE_URL.startswith("postgres://"):
                 DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
+            print("✅ Connecting to Railway PostgreSQL...")
             conn = psycopg2.connect(DATABASE_URL)
-            print("✅ Connected to Railway PostgreSQL")
-
-        # 💻 If running locally (pgAdmin)
+            print("✅ Railway DB Connected!")
+        
+        # 💻 Local pgAdmin (fallback)
         else:
+            print("✅ Connecting to Local PostgreSQL...")
             conn = psycopg2.connect(
-                dbname=os.getenv("DB_NAME"),
-                user=os.getenv("DB_USER"),
+                dbname=os.getenv("DB_NAME", "vulnerability_analyzer"),
+                user=os.getenv("DB_USER", "postgres"),
                 password=os.getenv("DB_PASSWORD"),
-                host=os.getenv("DB_HOST"),
-                port=os.getenv("DB_PORT")
+                host=os.getenv("DB_HOST", "localhost"),
+                port=os.getenv("DB_PORT", "5432")
             )
-            print("✅ Connected to Local PostgreSQL")
-
+            print("✅ Local DB Connected!")
+        
         return conn
-
+    
     except Exception as e:
-        print("❌ Database Connection Failed:", e)
+        print(f"❌ Database Connection Failed: {e}")
         raise
 
 

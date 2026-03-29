@@ -16,6 +16,11 @@ import zipfile
 from zip_handler import extract_python_files
 from pdf_generator import generate_batch_pdf
 
+print("🚀 VulnERR Flask starting...")
+print(f"PORT: {os.getenv('PORT', 5000)}")
+print(f"DB URL: {'✅' if os.getenv('DATABASE_URL') else '❌ Missing'}")
+print(f"Model URL: {os.getenv('MODEL_URL', 'MISSING')}")
+
 from bs4 import BeautifulSoup
 
 def parse_vulnerabilities(html):

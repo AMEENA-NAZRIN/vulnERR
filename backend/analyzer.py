@@ -1,17 +1,63 @@
 import torch
+import os
+import requests
+from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from zipfile import ZipFile
+from io import BytesIO
 
-MODEL_PATH = "../best_codebert_vuldet"
+MODEL_URL = os.getenv("MODEL_URL")
+MODEL_PATH = "./models/best_codebert_vuldet"
 
+def download_model():
+    if Path(MODEL_PATH).exists():
+        print("✅ Model already cached - skipping download")
+        return
+    
+    print(f"📥 Downloading 478MB model from HF: {MODEL_URL}")
+    os.makedirs("./models", exist_ok=True)
+    
+    try:
+
+        r = requests.get(MODEL_URL, stream=True, timeout=300)
+        r.raise_for_status()
+        
+        # Save ZIP
+        zip_path = "model.zip"
+        with open(zip_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        print("📦 Extracting model...")
+        # Extract
+        with ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall("./models")
+        
+        os.remove(zip_path)
+        print("✅ Model downloaded & extracted to ./models!")
+        
+    except Exception as e:
+        print(f"❌ Model download failed: {e}")
+        raise
+
+# Download model on startup (happens once)
+download_model()
+
+# Load tokenizer + model
+print("🔄 Loading CodeBERT tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False)
+print("🔄 Loading CodeBERT model...")
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
 model.eval()
 
+# CPU/GPU detection
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
+print(f"✅ Analyzer ready on {device}!")
 
+# YOUR EXACT analyze_code function (unchanged)
 def analyze_code(code, threshold=0.20, max_length=510, stride=256):
-    
+
     # ── Guard: empty code ────────────────────────────────
     if not code or not code.strip():
         return {
@@ -63,7 +109,8 @@ def analyze_code(code, threshold=0.20, max_length=510, stride=256):
             vuln_prob  = probs[0][1].item()
             chunk_probs.append(vuln_prob)
 
-        if end == len(tokens): break
+        if end == len(tokens): 
+            break
         start += stride
 
     # ── Aggregate ─────────────────────────────────────────
