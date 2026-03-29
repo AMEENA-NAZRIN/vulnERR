@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+import os
+
 '''
 from database import get_connection, create_table, save_code_to_db
 from psycopg2.extras import RealDictCursor
@@ -7,7 +9,6 @@ import psycopg2
 import bcrypt
 from analyzer import analyze_code
 from llama_suggester import get_taint_fix_suggestions
-import os
 from pdf_generator import generate_pdf
 from flask import send_from_directory
 from io import BytesIO
